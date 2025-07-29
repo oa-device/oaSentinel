@@ -1,0 +1,202 @@
+[project]
+name = "oa-sentinel"
+version = "0.1.0"
+description = "Custom AI model for OrangeAd - Human detection and tracking optimization"
+readme = "README.md"
+authors = [
+    { name = "OrangeAd AI Team", email = "ai@orangead.co" }
+]
+license = { text = "Proprietary" }
+requires-python = ">=3.10"
+
+dependencies = [
+    # Core ML framework (aligned with oaTracker)
+    "ultralytics>=8.0.0",
+    "torch>=2.0.0",
+    "torchvision",
+    "torchmetrics",
+    
+    # Computer vision
+    "opencv-python>=4.8.0",
+    "pillow",
+    "numpy",
+    "scipy",
+    
+    # Data processing
+    "pandas",
+    "pyarrow",
+    "datasets",
+    "albumentations",
+    
+    # ML utilities  
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "wandb",  # Experiment tracking
+    
+    # Export formats
+    "coremltools; platform_system == 'Darwin'",  # CoreML for macOS
+    "onnx",  # ONNX for cross-platform
+    "onnxruntime",
+    
+    # Development tools
+    "jupyter",
+    "ipykernel",
+    "jupyterlab",
+    "notebook",
+    
+    # API and serving (future integration with oaTracker)
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    
+    # Utilities
+    "tqdm",
+    "rich",
+    "typer",  # CLI framework
+    "pyyaml",
+    "python-dotenv",
+    "requests",
+    "httpx",
+    
+    # Testing
+    "pytest>=7.0.0",
+    "pytest-cov",
+    "pytest-asyncio",
+    
+    # Code quality
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+    "pre-commit",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter",
+    "ipykernel", 
+    "jupyterlab",
+    "notebook",
+    "pre-commit",
+    "pytest-xdist",  # Parallel testing
+    "tensorboard",
+]
+
+gpu = [
+    "torch[cuda]",  # CUDA support
+]
+
+[project.scripts]
+oa-sentinel = "src.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/orangead/oaSentinel"
+Repository = "https://github.com/orangead/oaSentinel.git"
+Documentation = "https://docs.orangead.co/oaSentinel"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | data
+  | models
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["src"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "ultralytics.*",
+    "cv2.*",
+    "torch.*",
+    "torchvision.*",
+    "matplotlib.*",
+    "seaborn.*",
+    "plotly.*",
+    "wandb.*",
+    "albumentations.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "gpu: marks tests that require GPU",
+    "dataset: marks tests that require datasets",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
