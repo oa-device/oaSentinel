@@ -120,143 +120,69 @@ process_crowdhuman() {
         fi
     done
     
-    log_info "Converting ODGT annotations to YOLO format..."
+    log_info "Converting ODGT annotations to YOLO format using CrowdHumanProcessor..."
     
-    # Create Python script for conversion
+    # Use our custom CrowdHumanProcessor for conversion
     python3 << 'EOF'
-import json
+import sys
 import os
-import shutil
 from pathlib import Path
-import random
-import yaml
-from tqdm import tqdm
 
-def convert_odgt_to_yolo(odgt_file, images_dir, output_dir, split_name):
-    """Convert CrowdHuman ODGT format to YOLO format"""
-    
-    # Create output directories
-    images_out = Path(output_dir) / "images" / split_name
-    labels_out = Path(output_dir) / "labels" / split_name
-    images_out.mkdir(parents=True, exist_ok=True)
-    labels_out.mkdir(parents=True, exist_ok=True)
-    
-    converted_count = 0
-    skipped_count = 0
-    
-    print(f"Converting {split_name} split...")
-    
-    with open(odgt_file, 'r') as f:
-        for line in tqdm(f):
-            try:
-                data = json.loads(line.strip())
-                image_id = data['ID']
-                image_file = f"{image_id}.jpg"
-                
-                # Check if image exists
-                image_path = Path(images_dir) / image_file
-                if not image_path.exists():
-                    skipped_count += 1
-                    continue
-                
-                # Get image dimensions
-                from PIL import Image
-                with Image.open(image_path) as img:
-                    img_width, img_height = img.size
-                
-                # Copy image to output directory
-                shutil.copy2(image_path, images_out / image_file)
-                
-                # Convert annotations
-                yolo_annotations = []
-                
-                for obj in data.get('gtboxes', []):
-                    # CrowdHuman has 'person' class
-                    if obj.get('tag') == 'person':
-                        # Get visible bounding box (some objects have 'vbox' and 'fbox')
-                        bbox = obj.get('vbox', obj.get('fbox'))
-                        if bbox is None:
-                            continue
-                            
-                        x, y, w, h = bbox
-                        
-                        # Skip invalid bounding boxes
-                        if w <= 0 or h <= 0:
-                            continue
-                        
-                        # Convert to YOLO format (normalized center coordinates)
-                        center_x = (x + w / 2) / img_width
-                        center_y = (y + h / 2) / img_height
-                        norm_width = w / img_width
-                        norm_height = h / img_height
-                        
-                        # Ensure values are within [0, 1]
-                        center_x = max(0, min(1, center_x))
-                        center_y = max(0, min(1, center_y))
-                        norm_width = max(0, min(1, norm_width))
-                        norm_height = max(0, min(1, norm_height))
-                        
-                        # Class 0 for person
-                        yolo_annotations.append(f"0 {center_x:.6f} {center_y:.6f} {norm_width:.6f} {norm_height:.6f}")
-                
-                # Write YOLO annotation file
-                if yolo_annotations:
-                    with open(labels_out / f"{image_id}.txt", 'w') as f_out:
-                        f_out.write('\n'.join(yolo_annotations))
-                    converted_count += 1
-                else:
-                    # Remove image if no valid annotations
-                    (images_out / image_file).unlink()
-                    skipped_count += 1
-                    
-            except Exception as e:
-                print(f"Error processing line: {e}")
-                skipped_count += 1
-                continue
-    
-    return converted_count, skipped_count
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-# Configuration
+from data_processing.crowdhuman import CrowdHumanProcessor
+
+# Configuration from environment
 input_dir = Path(os.environ.get('INPUT_DIR', 'data/raw/crowdhuman'))
 output_dir = Path(os.environ.get('OUTPUT_DIR', 'data/processed/crowdhuman'))
-images_dir = input_dir / "Images"
+splits_str = os.environ.get('SPLITS', '0.8,0.15,0.05')
 
-print("Starting CrowdHuman to YOLO conversion...")
+# Parse splits
+splits = tuple(float(x) for x in splits_str.split(','))
 
-# Convert train and validation sets
-train_converted, train_skipped = convert_odgt_to_yolo(
-    input_dir / "annotation_train.odgt",
-    images_dir,
-    output_dir,
-    "train"
-)
+print(f"Processing CrowdHuman dataset:")
+print(f"  Input: {input_dir}")
+print(f"  Output: {output_dir}")
+print(f"  Splits: {splits}")
 
-val_converted, val_skipped = convert_odgt_to_yolo(
-    input_dir / "annotation_val.odgt", 
-    images_dir,
-    output_dir,
-    "val"
-)
+try:
+    # Initialize processor
+    processor = CrowdHumanProcessor(input_dir, output_dir)
+    
+    # Process dataset
+    results = processor.process(splits)
+    
+    print("\n" + "="*50)
+    print("PROCESSING COMPLETED SUCCESSFULLY!")
+    print("="*50)
+    
+    # Print summary
+    conversion_stats = results.get('conversion_stats', {})
+    for split_name, stats in conversion_stats.items():
+        print(f"\n{split_name.upper()} Split:")
+        print(f"  ✅ Converted: {stats['converted_images']} images")
+        print(f"  ⚠️  Skipped: {stats['skipped_images']} images") 
+        print(f"  ❌ Errors: {stats['error_images']} images")
+        print(f"  📊 Annotations: {stats['total_annotations']}")
+    
+    # Final statistics
+    final_stats = results.get('final_statistics', {})
+    total_images = final_stats.get('total_images', 0)
+    print(f"\n📈 FINAL SUMMARY:")
+    print(f"Total images processed: {total_images}")
+    print(f"Dataset YAML: {results.get('dataset_yaml', 'N/A')}")
+    
+    if results.get('custom_splits_applied'):
+        print(f"Custom splits applied: {results['split_ratios']}")
+    
+except Exception as e:
+    print(f"ERROR: Processing failed - {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
 
-print(f"\nConversion Summary:")
-print(f"Train: {train_converted} converted, {train_skipped} skipped")
-print(f"Val: {val_converted} converted, {val_skipped} skipped")
-print(f"Total: {train_converted + val_converted} images processed")
-
-# Create dataset YAML for YOLO training
-dataset_yaml = {
-    'path': str(output_dir.absolute()),
-    'train': 'images/train',
-    'val': 'images/val',
-    'nc': 1,  # number of classes
-    'names': ['person']
-}
-
-with open(output_dir / "crowdhuman.yaml", 'w') as f:
-    yaml.dump(dataset_yaml, f, default_flow_style=False)
-
-print(f"Dataset YAML created: {output_dir}/crowdhuman.yaml")
-print("CrowdHuman processing complete!")
+print("\nDataset ready for training! 🚀")
 EOF
     
     # Set environment variables for Python script
