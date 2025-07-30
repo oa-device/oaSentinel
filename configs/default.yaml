@@ -1,0 +1,55 @@
+# oaSentinel Default Training Configuration
+model:
+  architecture: "yolov8m"
+  pretrained: true
+  num_classes: 1  # Human detection only
+
+dataset:
+  name: "crowdhuman"
+  path: "data/processed/crowdhuman"
+  train_split: 0.8
+  val_split: 0.15
+  test_split: 0.05
+  image_size: 640
+  batch_size: 16
+
+training:
+  epochs: 100
+  learning_rate: 0.001
+  optimizer: "AdamW"
+  scheduler: "cosine"
+  device: "auto"
+  workers: 4
+  patience: 10  # Early stopping
+  
+  # Augmentation
+  augment:
+    hsv_h: 0.015
+    hsv_s: 0.7
+    hsv_v: 0.4
+    degrees: 0.0
+    translate: 0.1
+    scale: 0.5
+    shear: 0.0
+    perspective: 0.0
+    flipud: 0.0
+    fliplr: 0.5
+    mosaic: 1.0
+    mixup: 0.0
+
+evaluation:
+  iou_threshold: 0.5
+  confidence_threshold: 0.25
+  metrics: ["mAP@0.5", "mAP@0.5:0.95", "precision", "recall"]
+
+export:
+  formats: ["onnx", "coreml"]
+  optimize: true
+  quantize: "int8"
+  simplify: true
+
+experiment:
+  name: "crowdhuman_baseline"
+  project: "oaSentinel"
+  notes: "Baseline training on CrowdHuman dataset"
+  tags: ["baseline", "crowdhuman", "yolov8m"]
