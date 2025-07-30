@@ -95,11 +95,19 @@ download_crowdhuman() {
     echo ""
     echo "Please follow these steps:"
     echo "1. Visit: https://www.crowdhuman.org/"
-    echo "2. Register and agree to the terms"
+    echo "2. Register and agree to the terms of use"
     echo "3. Download the following files to $dataset_dir:"
-    echo "   - annotation_train.odgt"
-    echo "   - annotation_val.odgt" 
-    echo "   - Images.zip (or extract to Images/ folder)"
+    echo "   📄 annotation_train.odgt (~47MB)"
+    echo "   📄 annotation_val.odgt (~14MB)" 
+    echo "   📦 Images.zip (~15GB) or extract to Images/ folder"
+    echo ""
+    echo "💡 Citation required:"
+    echo "@article{shao2018crowdhuman,"
+    echo "    title={CrowdHuman: A Benchmark for Detecting Human in a Crowd},"
+    echo "    author={Shao, Shuai and Zhao, Zijian and Li, Boxun and Xiao, Tete and Yu, Gang and Zhang, Xiangyu and Sun, Jian},"
+    echo "    journal={arXiv preprint arXiv:1805.00123},"
+    echo "    year={2018}"
+    echo "}"
     echo ""
     echo "Expected directory structure:"
     echo "$dataset_dir/"
@@ -108,11 +116,12 @@ download_crowdhuman() {
     echo "└── Images/"
     echo "    ├── 273271,1a0d6000b9e1f5b7.jpg"
     echo "    ├── 273271,1a10d000b9e1f5b7.jpg"
-    echo "    └── ..."
+    echo "    └── ... (~24,370 total images)"
     echo ""
     
-    # Wait for user confirmation
-    read -p "Press Enter when you have downloaded and extracted the files..."
+    # Wait for user confirmation with timeout
+    echo "⏳ Waiting for manual download completion..."
+    read -t 300 -p "Press Enter when you have downloaded and extracted the files (or wait 5 minutes to continue): " || echo ""
     
     # Validate downloaded files
     log_info "Validating downloaded files..."
@@ -145,14 +154,41 @@ download_crowdhuman() {
         log_success "Images extracted"
     fi
     
-    # Validate image count
-    local image_count=$(find "$dataset_dir/Images" -name "*.jpg" | wc -l)
+    # Validate image count and file sizes
+    local image_count=$(find "$dataset_dir/Images" -name "*.jpg" 2>/dev/null | wc -l)
     log_info "Found $image_count image files"
     
-    if [ "$image_count" -lt 15000 ]; then
-        log_warning "Expected ~15,000+ images, found $image_count. Dataset may be incomplete."
-    else
+    # Check annotation file sizes (approximate)
+    local train_size=$(stat -f%z "$dataset_dir/annotation_train.odgt" 2>/dev/null || echo "0")
+    local val_size=$(stat -f%z "$dataset_dir/annotation_val.odgt" 2>/dev/null || echo "0")
+    
+    log_info "Annotation file sizes:"
+    log_info "  annotation_train.odgt: $(( train_size / 1024 / 1024 ))MB"
+    log_info "  annotation_val.odgt: $(( val_size / 1024 / 1024 ))MB"
+    
+    # Validation checks
+    local validation_errors=0
+    
+    if [ "$image_count" -lt 20000 ]; then
+        log_warning "Expected ~24,370 images, found $image_count. Dataset may be incomplete."
+        ((validation_errors++))
+    fi
+    
+    if [ "$train_size" -lt 40000000 ]; then  # ~40MB minimum
+        log_warning "annotation_train.odgt seems small ($(( train_size / 1024 / 1024 ))MB). Expected ~47MB."
+        ((validation_errors++))
+    fi
+    
+    if [ "$val_size" -lt 10000000 ]; then  # ~10MB minimum
+        log_warning "annotation_val.odgt seems small ($(( val_size / 1024 / 1024 ))MB). Expected ~14MB."
+        ((validation_errors++))
+    fi
+    
+    if [ "$validation_errors" -eq 0 ]; then
         log_success "CrowdHuman dataset validated successfully"
+    else
+        log_warning "Dataset validation completed with $validation_errors warnings"
+        log_info "You can proceed, but the dataset might be incomplete"
     fi
     
     # Create dataset info file
