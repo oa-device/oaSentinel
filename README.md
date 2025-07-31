@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org/)
-[![YOLO](https://img.shields.io/badge/YOLO-v8%2B-green.svg)](https://github.com/ultralytics/ultralytics)
+[![YOLO](https://img.shields.io/badge/YOLO-v11-green.svg)](https://github.com/ultralytics/ultralytics)
 [![License](https://img.shields.io/badge/License-Proprietary-yellow.svg)]()
 
 **Custom AI model for OrangeAd** - Advanced human detection and tracking optimization system built on proven ML infrastructure.
@@ -222,6 +222,45 @@ wandb login
 # Local TensorBoard
 tensorboard --logdir logs/tensorboard
 ```
+
+## Repository Management
+
+### File Exclusions (.gitignore)
+
+To keep the repository lean and efficient, the following files are automatically excluded from version control:
+
+#### **Large Binary Files**
+```bash
+# Model weights (auto-downloaded)
+*.pt, *.pth, *.onnx          # YOLO models, checkpoints
+yolo*.pt                     # Downloaded YOLO models
+*.mlpackage, *.engine        # Exported model formats
+```
+
+#### **Training Data & Outputs**
+```bash
+data/test_dataset/           # Synthetic test images
+data/processed/              # Processed training data  
+data/raw/                    # Raw datasets
+outputs/                     # Generated results
+runs/                        # Training runs
+```
+
+#### **Generated Artifacts**
+```bash
+.venv/                       # Virtual environment (1.5GB+)
+wandb/                       # Weights & Biases logs
+logs/                        # Training logs
+__pycache__/                 # Python cache files
+```
+
+#### **Why This Matters**
+- **Repository Size**: Keeps clone times under 30 seconds
+- **Storage Efficiency**: Excludes ~2GB+ of generated/downloadable content
+- **Collaboration**: Prevents conflicts with local training artifacts
+- **Performance**: Faster git operations and CI/CD builds
+
+> **Note**: All essential source code, configurations, and documentation remain tracked. Large files are recreated through setup scripts and training pipelines.
 
 ## Contributing
 
