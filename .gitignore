@@ -47,22 +47,83 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Data and models (large files)
-data/raw/
+# ========================================
+# ML/AI Specific Files (CRITICAL)
+# ========================================
+
+# Downloaded model weights (root level)
+*.pt
+*.pth
+*.onnx
+*.engine
+*.mlpackage
+*.tflite
+*.pb
+*.safetensors
+
+# Specific YOLO model files
+yolo*.pt
+yolov*.pt
+yolo11*.pt
+yolo8*.pt
+
+# Model checkpoints and exports
 models/checkpoints/*.pt
 models/checkpoints/*.pth
+models/checkpoints/*/
 models/exports/*.onnx
-models/exports/*.mlpackage
+models/exports/*.mlpackage  
 models/exports/*.engine
+models/exports/*.tflite
+models/exports/*.pb
+models/exports/*/
 
-# Logs and outputs
-logs/*.log
+# Training data and datasets
+data/raw/
+data/processed/
+data/test_dataset/
+data/train/
+data/val/
+data/test/
+data/splits/
+data/**/*.jpg
+data/**/*.jpeg
+data/**/*.png
+data/**/*.bmp
+data/**/*.tiff
+data/**/*.webp
+data/**/*.txt
+data/**/*.json
+data/**/*.xml
+data/**/*.odgt
+
+# Specific dataset formats
+*.odgt
+crowdhuman/
+coco/
+yolo_dataset/
+
+# Generated outputs and results  
 outputs/
-wandb/
+results/
 runs/
-mlruns/
+visualizations/
+predictions/
+inference/
 
-# Jupyter
+# Experiment tracking
+wandb/
+mlruns/
+tensorboard_logs/
+.wandb/
+
+# Logs and debugging
+logs/*.log
+logs/**/*.log
+*.log
+debug/
+
+# Jupyter notebooks (generated outputs)
 .ipynb_checkpoints/
 *.ipynb
 
@@ -72,12 +133,63 @@ mlruns/
 htmlcov/
 .tox/
 .cache
+.nox/
 nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+pytest.ini
 
 # MyPy
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# ========================================
+# Additional ML Artifacts
+# ========================================
+
+# Cached data
+.cache/
+cache/
+tmp/
+temp/
+
+# Compressed archives (datasets often come compressed)
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.rar
+*.7z
+
+# Large text files (annotations, logs)
+*.csv
+*.tsv
+annotations.txt
+labels.txt
+
+# Configuration files with secrets
+.env.local
+.env.production
+secrets.yaml
+config.local.yaml
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# System and hidden files
+.DS_Store
+._.DS_Store
+**/.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary directories
+__temp__/
+__tmp__/
+.tmp/
+.temp/
