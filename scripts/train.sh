@@ -36,7 +36,7 @@ show_usage() {
     echo ""
     echo "Options:"
     echo "  --config FILE     Training configuration file (default: configs/default.yaml)"
-    echo "  --model ARCH      Model architecture (yolov8n, yolov8s, yolov8m, yolov8l, yolov8x)"
+    echo "  --model ARCH      Model architecture (yolo11n, yolo11s, yolo11m, yolo11l, yolo11x)"
     echo "  --epochs NUM      Number of training epochs"
     echo "  --device DEVICE   Training device (auto/cpu/gpu/0/1/...)"
     echo "  --wandb          Enable Weights & Biases experiment tracking"
@@ -45,7 +45,7 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  $0                                    # Train with default config"
-    echo "  $0 --model yolov8s --epochs 50       # Quick training with small model"
+    echo "  $0 --model yolo11s --epochs 50       # Quick training with small model"
     echo "  $0 --config configs/custom.yaml      # Train with custom config"
     echo "  $0 --wandb                           # Enable experiment tracking"
     echo "  $0 --resume models/checkpoints/last.pt  # Resume training"
@@ -220,13 +220,15 @@ def main():
     
     # Get dataset configuration
     dataset_config = config.get('dataset', {})
-    dataset_path = dataset_config.get('path', 'data/processed/crowdhuman')
+    dataset_name = dataset_config.get('name', 'crowdhuman')
+    dataset_path = dataset_config.get('path', f'data/processed/{dataset_name}')
     
-    # Look for dataset YAML file
+    # Look for dataset YAML file with different naming patterns
     dataset_yaml_candidates = [
-        f"{dataset_path}/crowdhuman.yaml",
         f"{dataset_path}/dataset.yaml",
-        f"data/splits/{dataset_config.get('name', 'crowdhuman')}/dataset.yaml"
+        f"{dataset_path}/{dataset_name}.yaml",
+        f"data/splits/{dataset_name}/dataset.yaml",
+        f"data/{dataset_name}/dataset.yaml"
     ]
     
     dataset_yaml = None
