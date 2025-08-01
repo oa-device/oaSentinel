@@ -1,6 +1,6 @@
 # oaSentinel Default Training Configuration
 model:
-  architecture: "yolov8m"
+  architecture: "yolo11m"
   pretrained: true
   num_classes: 1  # Human detection only
 
@@ -51,5 +51,5 @@ export:
 experiment:
   name: "crowdhuman_baseline"
   project: "oaSentinel"
-  notes: "Baseline training on CrowdHuman dataset"
-  tags: ["baseline", "crowdhuman", "yolov8m"]
+  notes: "Baseline training on CrowdHuman dataset with YOLOv11"
+  tags: ["baseline", "crowdhuman", "yolo11m", "latest"]

@@ -1,0 +1,57 @@
+# oaSentinel Test Configuration
+# Configuration for testing the training pipeline with synthetic data
+
+model:
+  architecture: "yolo11n"  # Use nano model for fast testing
+  pretrained: true
+  num_classes: 1  # Human detection only
+
+dataset:
+  name: "test_dataset"
+  path: "data/test_dataset"
+  train_split: 0.8
+  val_split: 0.2
+  test_split: 0.0
+  image_size: 640
+  batch_size: 8  # Small batch size for testing
+
+training:
+  epochs: 10  # Short training for testing
+  learning_rate: 0.001
+  optimizer: "AdamW"
+  scheduler: "cosine"
+  device: "auto"
+  workers: 2  # Fewer workers for testing
+  patience: 5  # Early stopping
+  
+  # Light augmentation for testing
+  augment:
+    hsv_h: 0.01
+    hsv_s: 0.3
+    hsv_v: 0.2
+    degrees: 0.0
+    translate: 0.05
+    scale: 0.2
+    shear: 0.0
+    perspective: 0.0
+    flipud: 0.0
+    fliplr: 0.5
+    mosaic: 0.5
+    mixup: 0.0
+
+evaluation:
+  iou_threshold: 0.5
+  confidence_threshold: 0.25
+  metrics: ["mAP@0.5", "mAP@0.5:0.95", "precision", "recall"]
+
+export:
+  formats: ["onnx"]
+  optimize: true
+  quantize: false  # Skip quantization for testing
+  simplify: true
+
+experiment:
+  name: "test_baseline"
+  project: "oaSentinel-test" 
+  notes: "Baseline testing with synthetic dataset using YOLOv11"
+  tags: ["test", "synthetic", "yolo11n", "baseline", "latest"]
