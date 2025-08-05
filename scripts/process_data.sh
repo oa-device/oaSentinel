@@ -20,6 +20,8 @@ PROCESSED_DATA_DIR="$PROJECT_ROOT/data/processed"
 SPLITS_DIR="$PROJECT_ROOT/data/splits"
 DATASET="crowdhuman"
 SPLITS="0.8,0.15,0.05"  # train,val,test
+USE_TEST_DATASET=false
+AUTO_DETECT=true  # Enable by default for better automation
 
 # Logging functions
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
@@ -39,15 +41,25 @@ while [[ $# -gt 0 ]]; do
             SPLITS="$2"
             shift 2
             ;;
+        --use-test-dataset)
+            USE_TEST_DATASET=true
+            shift
+            ;;
+        --auto-detect)
+            AUTO_DETECT=true
+            shift
+            ;;
         -h|--help)
             echo "oaSentinel Data Processing Script"
             echo ""
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  --dataset NAME    Dataset to process (default: crowdhuman)"
-            echo "  --splits RATIOS   Train/val/test split ratios (default: 0.8,0.15,0.05)"
-            echo "  -h, --help        Show this help message"
+            echo "  --dataset NAME       Dataset to process (default: crowdhuman)"
+            echo "  --splits RATIOS      Train/val/test split ratios (default: 0.8,0.15,0.05)"
+            echo "  --use-test-dataset   Force use of test dataset"
+            echo "  --auto-detect        Auto-detect best available dataset"
+            echo "  -h, --help           Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0                                    # Process CrowdHuman with default splits"
@@ -83,10 +95,62 @@ if [ -z "$VIRTUAL_ENV" ]; then
 fi
 
 log_header "oaSentinel Data Processing"
-log_info "Dataset: $DATASET"
-log_info "Input directory: $RAW_DATA_DIR/$DATASET"
-log_info "Output directory: $PROCESSED_DATA_DIR/$DATASET"
-log_info "Split ratios: $SPLITS"
+
+# Smart dataset detection
+if [ "$AUTO_DETECT" = true ] || [ "$USE_TEST_DATASET" = true ]; then
+    log_info "Detecting available datasets..."
+    
+    if [ -f "scripts/detect_dataset.sh" ]; then
+        if DATASET_INFO=$(scripts/detect_dataset.sh --format env 2>/dev/null); then
+            eval "$DATASET_INFO"
+            
+            log_info "Dataset detection results:"
+            log_info "  Status: $DATASET_STATUS"
+            log_info "  Type: $DATASET_TYPE"
+            log_info "  Total images: $DATASET_TOTAL_COUNT"
+            
+            # Override dataset selection based on detection results
+            if [ "$USE_TEST_DATASET" = true ] && [ "$DATASET_TYPE" = "test_dataset" ]; then
+                log_info "Using test dataset as requested"
+                DATASET="test_dataset"
+                DATASET_MODE="test"
+            elif [ "$DATASET_STATUS" = "ready" ] && [ "$DATASET_TYPE" = "crowdhuman_full" ]; then
+                log_info "Using full CrowdHuman dataset"
+                DATASET="crowdhuman"
+                DATASET_MODE="full"
+            elif [ "$DATASET_STATUS" = "test" ] && [ "$DATASET_TYPE" = "test_dataset" ]; then
+                log_info "Full dataset not available, using test dataset"
+                DATASET="test_dataset"
+                DATASET_MODE="test"
+            elif [ "$DATASET_STATUS" = "processed" ]; then
+                log_success "Dataset already processed, skipping processing"
+                exit 0
+            else
+                log_warning "No suitable dataset found for processing"
+                log_info "Available datasets:"
+                log_info "  - Run ./scripts/download_data.sh for full CrowdHuman dataset"
+                log_info "  - Run ./scripts/create_test_dataset.sh for test dataset"
+                log_info "  - Use --use-test-dataset to force test mode"
+                exit 1
+            fi
+        else
+            log_warning "Dataset detection failed, using default settings"
+            DATASET_MODE="unknown"
+        fi
+    else
+        log_warning "Dataset detection script not found, using default settings"
+        DATASET_MODE="unknown"
+    fi
+else
+    DATASET_MODE="manual"
+fi
+
+log_info "Processing configuration:"
+log_info "  Dataset: $DATASET"
+log_info "  Mode: $DATASET_MODE"
+log_info "  Input directory: $RAW_DATA_DIR/$DATASET"
+log_info "  Output directory: $PROCESSED_DATA_DIR/$DATASET"
+log_info "  Split ratios: $SPLITS"
 
 # Create output directories
 mkdir -p "$PROCESSED_DATA_DIR/$DATASET"
