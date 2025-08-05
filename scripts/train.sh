@@ -16,8 +16,8 @@ NC='\033[0m'
 # Configuration
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="configs/default.yaml"
-MODEL_ARCH=""
-EPOCHS=""
+MODEL_ARCH="yolo11m"  # Default to YOLO11m as specified in requirements
+EPOCHS="100"          # Default to 100 epochs as specified in requirements
 DEVICE="auto"
 WANDB_MODE="disabled"
 RESUME=""
@@ -36,16 +36,17 @@ show_usage() {
     echo ""
     echo "Options:"
     echo "  --config FILE     Training configuration file (default: configs/default.yaml)"
-    echo "  --model ARCH      Model architecture (yolo11n, yolo11s, yolo11m, yolo11l, yolo11x)"
-    echo "  --epochs NUM      Number of training epochs"
-    echo "  --device DEVICE   Training device (auto/cpu/gpu/0/1/...)"
+    echo "  --model ARCH      Model architecture (yolo11n, yolo11s, yolo11m, yolo11l, yolo11x) [default: yolo11m]"
+    echo "  --epochs NUM      Number of training epochs [default: 100]"
+    echo "  --device DEVICE   Training device (auto/cpu/gpu/0/1/[0,1]/...)"
     echo "  --wandb          Enable Weights & Biases experiment tracking"
     echo "  --resume PATH     Resume training from checkpoint"
     echo "  -h, --help        Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0                                    # Train with default config"
+    echo "  $0                                    # Train with default config (yolo11m, 100 epochs)"
     echo "  $0 --model yolo11s --epochs 50       # Quick training with small model"
+    echo "  $0 --device '[0,1]' --epochs 100     # Dual-GPU training with RTX GPUs"
     echo "  $0 --config configs/custom.yaml      # Train with custom config"
     echo "  $0 --wandb                           # Enable experiment tracking"
     echo "  $0 --resume models/checkpoints/last.pt  # Resume training"
@@ -225,6 +226,7 @@ def main():
     
     # Look for dataset YAML file with different naming patterns
     dataset_yaml_candidates = [
+        "crowdhuman.yaml",  # User-specified crowdhuman.yaml in root
         f"{dataset_path}/dataset.yaml",
         f"{dataset_path}/{dataset_name}.yaml",
         f"data/splits/{dataset_name}/dataset.yaml",
@@ -273,14 +275,37 @@ def main():
     for key, value in train_args.items():
         print(f"  {key}: {value}")
     
-    # Check GPU availability
+    # Check GPU availability and setup device
+    print(f"\nDevice setup:")
+    print(f"  Requested device: {device}")
+    print(f"  CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"  GPU count: {torch.cuda.device_count()}")
+        for i in range(torch.cuda.device_count()):
+            print(f"    GPU {i}: {torch.cuda.get_device_name(i)}")
+    
     if device == 'auto':
         if torch.cuda.is_available():
-            device = 0  # Use first GPU
-            print(f"CUDA available: Using GPU {device}")
+            gpu_count = torch.cuda.device_count()
+            if gpu_count >= 2:
+                device = [0, 1]  # Use dual-GPU as specified in requirements
+                print(f"Auto-detected dual-GPU setup: Using GPUs {device}")
+            else:
+                device = 0  # Use first GPU
+                print(f"Single GPU detected: Using GPU {device}")
         else:
             device = 'cpu'
             print("CUDA not available: Using CPU")
+        train_args['device'] = device
+    else:
+        # Handle string representation of device list like '[0,1]'
+        if isinstance(device, str) and device.startswith('[') and device.endswith(']'):
+            try:
+                device = eval(device)  # Convert '[0,1]' to [0,1]
+                print(f"Using specified multi-GPU setup: {device}")
+            except:
+                print(f"Warning: Could not parse device list {device}, falling back to auto")
+                device = 'auto'
         train_args['device'] = device
     
     print(f"\nStarting training on device: {device}")
