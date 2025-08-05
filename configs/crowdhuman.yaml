@@ -1,13 +1,28 @@
 # oaSentinel CrowdHuman Dataset Configuration
 # Professional YOLO dataset configuration for human detection training
+# Updated to use shared dataset location: ~/CrowdHuman/
 
-path: data/processed  # dataset root dir (relative to project root)
-train: images/train   # train images (relative to 'path')
-val: images/val       # val images (relative to 'path') 
-test: images/test     # test images (relative to 'path')
+# NOTE: This config now points to shared dataset location for better resource management
+# Raw dataset: ~/CrowdHuman/raw/
+# Processed dataset: ~/CrowdHuman/processed/
+
+path: ~/CrowdHuman/processed  # Shared dataset location (expands to user home)
+train: images/train           # train images (relative to 'path')
+val: images/val              # val images (relative to 'path') 
+test: images/test            # test images (relative to 'path')
 
 # Classes for dual-class human detection
 nc: 2  # number of classes
 names:
   0: person  # Full body detection
   1: head    # Head detection
+
+# Dataset information
+dataset_name: "CrowdHuman"
+dataset_version: "2018"
+description: "CrowdHuman dataset for dense pedestrian detection"
+url: "https://www.crowdhuman.org/"
+
+# Paths for reference
+raw_data_path: "~/CrowdHuman/raw"
+shared_config_path: "~/CrowdHuman/configs/dataset.yaml"

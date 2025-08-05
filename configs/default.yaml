@@ -6,7 +6,7 @@ model:
 
 dataset:
   name: "crowdhuman"
-  path: "data/processed/crowdhuman"
+  path: "~/CrowdHuman/processed"  # Updated to use shared dataset location
   train_split: 0.8
   val_split: 0.15
   test_split: 0.05
@@ -51,5 +51,11 @@ export:
 experiment:
   name: "crowdhuman_baseline"
   project: "oaSentinel"
-  notes: "Baseline training on CrowdHuman dataset with YOLOv11"
-  tags: ["baseline", "crowdhuman", "yolo11m", "latest"]
+  notes: "Baseline training on CrowdHuman dataset with YOLOv11 (shared dataset location)"
+  tags: ["baseline", "crowdhuman", "yolo11m", "shared-dataset"]
+
+# Dataset paths for reference
+paths:
+  raw_dataset: "~/CrowdHuman/raw"
+  processed_dataset: "~/CrowdHuman/processed"
+  shared_config: "~/CrowdHuman/configs/dataset.yaml"
