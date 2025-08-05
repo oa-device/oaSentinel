@@ -81,7 +81,7 @@ models/exports/*/
 # Training data and datasets
 data/raw/
 data/processed/
-data/test_dataset/
+# data/test_dataset/  # Keeping test dataset tracked for pipeline validation
 data/train/
 data/val/
 data/test/
