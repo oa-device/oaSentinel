@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""
+oaSentinel Training Executable
+Professional training entry point with strict error handling
+"""
+
+import sys
+import os
+import argparse
+from pathlib import Path
+
+# Add src to path for imports
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+try:
+    import torch
+    from ultralytics import YOLO
+    import yaml
+except ImportError as e:
+    print(f"FATAL ERROR: Required package not installed: {e}")
+    print("Run: pip install -r requirements.txt")
+    sys.exit(1)
+
+
+def validate_environment():
+    """Validate environment with strict requirements - NO FALLBACKS"""
+    
+    # Check CUDA availability for GPU training
+    if not torch.cuda.is_available():
+        print("FATAL ERROR: CUDA not available. GPU training required.")
+        print("Install CUDA-compatible PyTorch or use a GPU-enabled machine.")
+        sys.exit(1)
+    
+    gpu_count = torch.cuda.device_count()
+    if gpu_count == 0:
+        print("FATAL ERROR: No GPUs detected.")
+        sys.exit(1)
+    
+    print(f"✓ Found {gpu_count} GPU(s)")
+    for i in range(gpu_count):
+        gpu_name = torch.cuda.get_device_name(i)
+        print(f"  GPU {i}: {gpu_name}")
+
+
+def validate_dataset_config(config_path: Path):
+    """Validate dataset configuration - FAIL if invalid"""
+    
+    if not config_path.exists():
+        print(f"FATAL ERROR: Dataset config not found: {config_path}")
+        sys.exit(1)
+    
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+    except Exception as e:
+        print(f"FATAL ERROR: Invalid YAML in {config_path}: {e}")
+        sys.exit(1)
+    
+    # Validate required fields
+    required_fields = ['path', 'train', 'val', 'nc', 'names']
+    for field in required_fields:
+        if field not in config:
+            print(f"FATAL ERROR: Missing required field '{field}' in {config_path}")
+            sys.exit(1)
+    
+    # Validate dataset paths exist
+    dataset_root = PROJECT_ROOT / config['path'] if not Path(config['path']).is_absolute() else Path(config['path'])
+    train_path = dataset_root / config['train']
+    val_path = dataset_root / config['val']
+    
+    if not train_path.exists():
+        print(f"FATAL ERROR: Training images not found: {train_path}")
+        print("Run data processing first: bin/oas-process")
+        sys.exit(1)
+    
+    if not val_path.exists():
+        print(f"FATAL ERROR: Validation images not found: {val_path}")
+        print("Run data processing first: bin/oas-process")
+        sys.exit(1)
+    
+    # Count images
+    train_images = list(train_path.glob("*.jpg")) + list(train_path.glob("*.png"))
+    val_images = list(val_path.glob("*.jpg")) + list(val_path.glob("*.png"))
+    
+    if len(train_images) == 0:
+        print(f"FATAL ERROR: No training images found in {train_path}")
+        sys.exit(1)
+    
+    if len(val_images) == 0:
+        print(f"FATAL ERROR: No validation images found in {val_path}")
+        sys.exit(1)
+    
+    print(f"✓ Dataset validated: {len(train_images)} train, {len(val_images)} val images")
+    return config
+
+
+def validate_model_file(model_path: Path):
+    """Validate model file exists - FAIL if missing"""
+    
+    if not model_path.exists():
+        print(f"FATAL ERROR: Model file not found: {model_path}")
+        print("Available models in models/:")
+        models_dir = PROJECT_ROOT / "models"
+        if models_dir.exists():
+            for model in models_dir.glob("*.pt"):
+                print(f"  {model.name}")
+        else:
+            print("  No models directory found")
+        sys.exit(1)
+    
+    print(f"✓ Model file validated: {model_path}")
+
+
+def parse_device_list(device_str: str) -> list:
+    """Parse device string - FAIL on invalid format"""
+    
+    if device_str.startswith('[') and device_str.endswith(']'):
+        try:
+            # Remove brackets and split by comma
+            device_list = [int(x.strip()) for x in device_str[1:-1].split(',')]
+            
+            # Validate GPU indices exist
+            gpu_count = torch.cuda.device_count()
+            for gpu_id in device_list:
+                if gpu_id >= gpu_count:
+                    print(f"FATAL ERROR: GPU {gpu_id} not available. Only {gpu_count} GPUs detected.")
+                    sys.exit(1)
+            
+            return device_list
+        except ValueError as e:
+            print(f"FATAL ERROR: Invalid device format '{device_str}': {e}")
+            print("Use format: [0,1] for multi-GPU or single number for single GPU")
+            sys.exit(1)
+    else:
+        try:
+            gpu_id = int(device_str)
+            if gpu_id >= torch.cuda.device_count():
+                print(f"FATAL ERROR: GPU {gpu_id} not available. Only {torch.cuda.device_count()} GPUs detected.")
+                sys.exit(1)
+            return gpu_id
+        except ValueError:
+            print(f"FATAL ERROR: Invalid device '{device_str}'. Use GPU index (0, 1, etc.) or [0,1] for multi-GPU")
+            sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='oaSentinel Training - Professional Human Detection Model Training',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --data configs/crowdhuman.yaml --epochs 100 --device [0,1]
+  %(prog)s --data configs/crowdhuman.yaml --epochs 50 --device 0
+        """
+    )
+    
+    parser.add_argument('--data', required=True, type=Path,
+                       help='Dataset YAML configuration file (REQUIRED)')
+    parser.add_argument('--epochs', required=True, type=int,
+                       help='Number of training epochs (REQUIRED)')
+    parser.add_argument('--device', required=True, type=str,
+                       help='GPU device(s): single GPU (0) or multi-GPU [0,1] (REQUIRED)')
+    parser.add_argument('--model', type=Path, default=Path('models/yolo11m.pt'),
+                       help='Model file path (default: models/yolo11m.pt)')
+    parser.add_argument('--imgsz', type=int, default=640,
+                       help='Image size for training (default: 640)')
+    
+    args = parser.parse_args()
+    
+    print("🎯 oaSentinel Professional Training")
+    print("=" * 50)
+    
+    # Strict validation - NO FALLBACKS
+    validate_environment()
+    dataset_config = validate_dataset_config(args.data)
+    validate_model_file(args.model)
+    device = parse_device_list(args.device)
+    
+    print(f"✓ Configuration validated")
+    print(f"  Dataset: {args.data}")
+    print(f"  Model: {args.model}")
+    print(f"  Epochs: {args.epochs}")
+    print(f"  Device: {device}")
+    print(f"  Image size: {args.imgsz}")
+    print()
+    
+    # Load and train model
+    try:
+        print("Loading model...")
+        model = YOLO(str(args.model))
+        
+        print("Starting training...")
+        results = model.train(
+            data=str(args.data),
+            epochs=args.epochs,
+            imgsz=args.imgsz,
+            device=device,
+            verbose=True
+        )
+        
+        print("\n🎉 Training completed successfully!")
+        
+        # Show results location
+        if hasattr(results, 'save_dir'):
+            print(f"Results saved to: {results.save_dir}")
+        
+    except Exception as e:
+        print(f"\nFATAL ERROR during training: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

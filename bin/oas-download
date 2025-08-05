@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""
+oaSentinel Data Download Executable
+Professional dataset download with strict error handling
+"""
+
+import sys
+import os
+import argparse
+import subprocess
+from pathlib import Path
+import urllib.request
+import tarfile
+import zipfile
+
+# Add src to path for imports
+PROJECT_ROOT = Path(__file__).parent.parent
+
+
+def check_internet_connection():
+    """Check internet connectivity - FAIL if offline"""
+    try:
+        urllib.request.urlopen('https://www.google.com', timeout=5)
+        print("✓ Internet connection verified")
+    except:
+        print("FATAL ERROR: No internet connection available")
+        print("Internet connection required to download CrowdHuman dataset")
+        sys.exit(1)
+
+
+def download_crowdhuman_dataset(output_dir: Path):
+    """Download CrowdHuman dataset from Hugging Face"""
+    
+    # CrowdHuman dataset URLs (Hugging Face)
+    base_url = "https://huggingface.co/datasets/sshao0516/CrowdHuman/resolve/main"
+    
+    files_to_download = [
+        ("annotation_train.odgt", "annotation_train.odgt"),
+        ("annotation_val.odgt", "annotation_val.odgt"),
+        ("Images.zip", "Images.zip")
+    ]
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    print("Downloading CrowdHuman dataset files...")
+    
+    for filename, local_name in files_to_download:
+        url = f"{base_url}/{filename}"
+        local_path = output_dir / local_name
+        
+        if local_path.exists():
+            print(f"✓ {local_name} already exists, skipping")
+            continue
+        
+        print(f"Downloading {filename}...")
+        try:
+            urllib.request.urlretrieve(url, local_path)
+            print(f"✓ Downloaded {local_name}")
+        except Exception as e:
+            print(f"FATAL ERROR: Failed to download {filename}: {e}")
+            sys.exit(1)
+    
+    # Extract Images.zip
+    images_zip = output_dir / "Images.zip"
+    images_dir = output_dir / "Images"
+    
+    if images_zip.exists() and not images_dir.exists():
+        print("Extracting Images.zip...")
+        try:
+            with zipfile.ZipFile(images_zip, 'r') as zip_ref:
+                zip_ref.extractall(output_dir)
+            print("✓ Images extracted")
+            
+            # Remove zip file after extraction
+            images_zip.unlink()
+            print("✓ Images.zip removed")
+            
+        except Exception as e:
+            print(f"FATAL ERROR: Failed to extract Images.zip: {e}")
+            sys.exit(1)
+    
+    # Verify download
+    required_files = ["annotation_train.odgt", "annotation_val.odgt", "Images"]
+    for file_name in required_files:
+        file_path = output_dir / file_name
+        if not file_path.exists():
+            print(f"FATAL ERROR: Download verification failed - missing {file_name}")
+            sys.exit(1)
+    
+    # Count images
+    images_dir = output_dir / "Images"
+    image_files = list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png"))
+    
+    print(f"✓ CrowdHuman dataset download completed")
+    print(f"  Location: {output_dir}")
+    print(f"  Images: {len(image_files)}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='oaSentinel Data Download - Download CrowdHuman dataset',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --output data/raw/crowdhuman
+  %(prog)s --output /path/to/dataset/storage
+        """
+    )
+    
+    parser.add_argument('--output', required=True, type=Path,
+                       help='Output directory for downloaded dataset (REQUIRED)')
+    parser.add_argument('--force', action='store_true',
+                       help='Force re-download even if files exist')
+    
+    args = parser.parse_args()
+    
+    print("🎯 oaSentinel Professional Data Download")
+    print("=" * 50)
+    
+    # Strict validation - NO FALLBACKS
+    check_internet_connection()
+    
+    if args.output.exists() and not args.force:
+        existing_files = list(args.output.iterdir())
+        if existing_files:
+            print(f"FATAL ERROR: Output directory not empty: {args.output}")
+            print("Use --force to overwrite existing files")
+            sys.exit(1)
+    
+    print(f"✓ Configuration validated")
+    print(f"  Output: {args.output}")
+    print(f"  Force: {args.force}")
+    print()
+    
+    # Download dataset
+    try:
+        download_crowdhuman_dataset(args.output)
+        
+        print("\n🎉 Dataset download completed successfully!")
+        print(f"Dataset location: {args.output}")
+        print("Next step: bin/oas-process --input {} --output data/processed".format(args.output))
+        
+    except Exception as e:
+        print(f"\nFATAL ERROR during download: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

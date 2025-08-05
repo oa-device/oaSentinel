@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""
+oaSentinel Model Export Executable
+Professional model export with strict error handling
+"""
+
+import sys
+import os
+import argparse
+from pathlib import Path
+
+# Add src to path for imports
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+try:
+    from ultralytics import YOLO
+except ImportError as e:
+    print(f"FATAL ERROR: Required package not installed: {e}")
+    print("Run: pip install -r requirements.txt")
+    sys.exit(1)
+
+
+def validate_model_file(model_path: Path):
+    """Validate trained model file - FAIL if invalid"""
+    
+    if not model_path.exists():
+        print(f"FATAL ERROR: Model file not found: {model_path}")
+        print("Train a model first: bin/oas-train")
+        sys.exit(1)
+    
+    if not model_path.suffix == '.pt':
+        print(f"FATAL ERROR: Invalid model file format. Expected .pt, got {model_path.suffix}")
+        sys.exit(1)
+    
+    print(f"✓ Model file validated: {model_path}")
+
+
+def validate_export_formats(formats: list):
+    """Validate export formats - FAIL if unsupported"""
+    
+    supported_formats = ['onnx', 'coreml', 'torchscript', 'tflite', 'pb']
+    invalid_formats = [f for f in formats if f not in supported_formats]
+    
+    if invalid_formats:
+        print(f"FATAL ERROR: Unsupported export formats: {invalid_formats}")
+        print(f"Supported formats: {supported_formats}")
+        sys.exit(1)
+    
+    print(f"✓ Export formats validated: {formats}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='oaSentinel Model Export - Export trained models to deployment formats',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --model runs/detect/train/weights/best.pt --formats onnx coreml
+  %(prog)s --model models/trained_model.pt --formats onnx --output models/exported/
+        """
+    )
+    
+    parser.add_argument('--model', required=True, type=Path,
+                       help='Trained model file (.pt) (REQUIRED)')
+    parser.add_argument('--formats', required=True, nargs='+',
+                       choices=['onnx', 'coreml', 'torchscript', 'tflite', 'pb'],
+                       help='Export formats (REQUIRED)')
+    parser.add_argument('--output', type=Path, default=Path('models/exported'),
+                       help='Output directory (default: models/exported)')
+    parser.add_argument('--optimize', action='store_true',
+                       help='Optimize exported models for inference')
+    
+    args = parser.parse_args()
+    
+    print("🎯 oaSentinel Professional Model Export")
+    print("=" * 50)
+    
+    # Strict validation - NO FALLBACKS
+    validate_model_file(args.model)
+    validate_export_formats(args.formats)
+    
+    # Create output directory
+    args.output.mkdir(parents=True, exist_ok=True)
+    
+    print(f"✓ Configuration validated")
+    print(f"  Model: {args.model}")
+    print(f"  Formats: {args.formats}")
+    print(f"  Output: {args.output}")
+    print(f"  Optimize: {args.optimize}")
+    print()
+    
+    # Export model
+    try:
+        print("Loading trained model...")
+        model = YOLO(str(args.model))
+        
+        exported_files = []
+        
+        for format_name in args.formats:
+            print(f"Exporting to {format_name.upper()}...")
+            
+            export_path = model.export(
+                format=format_name,
+                optimize=args.optimize,
+                verbose=True
+            )
+            
+            if export_path:
+                # Move to output directory if not already there
+                export_file = Path(export_path)
+                target_file = args.output / export_file.name
+                
+                if export_file != target_file:
+                    export_file.rename(target_file)
+                    exported_files.append(target_file)
+                else:
+                    exported_files.append(export_file)
+                
+                print(f"✓ {format_name.upper()} export completed: {target_file}")
+            else:
+                print(f"FATAL ERROR: {format_name.upper()} export failed")
+                sys.exit(1)
+        
+        print("\n🎉 Model export completed successfully!")
+        print("Exported files:")
+        for file_path in exported_files:
+            file_size = file_path.stat().st_size / (1024 * 1024)  # MB
+            print(f"  {file_path} ({file_size:.1f} MB)")
+        
+    except Exception as e:
+        print(f"\nFATAL ERROR during export: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
