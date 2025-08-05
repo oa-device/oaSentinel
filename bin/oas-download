@@ -31,13 +31,16 @@ def check_internet_connection():
 def download_crowdhuman_dataset(output_dir: Path):
     """Download CrowdHuman dataset from Hugging Face"""
     
-    # CrowdHuman dataset URLs (Hugging Face)
+    # CrowdHuman dataset URLs (Hugging Face) - Updated structure
     base_url = "https://huggingface.co/datasets/sshao0516/CrowdHuman/resolve/main"
     
     files_to_download = [
         ("annotation_train.odgt", "annotation_train.odgt"),
         ("annotation_val.odgt", "annotation_val.odgt"),
-        ("Images.zip", "Images.zip")
+        ("CrowdHuman_train01.zip", "CrowdHuman_train01.zip"),
+        ("CrowdHuman_train02.zip", "CrowdHuman_train02.zip"),
+        ("CrowdHuman_train03.zip", "CrowdHuman_train03.zip"),
+        ("CrowdHuman_val.zip", "CrowdHuman_val.zip")
     ]
     
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -60,24 +63,33 @@ def download_crowdhuman_dataset(output_dir: Path):
             print(f"FATAL ERROR: Failed to download {filename}: {e}")
             sys.exit(1)
     
-    # Extract Images.zip
-    images_zip = output_dir / "Images.zip"
+    # Extract all CrowdHuman zip files
     images_dir = output_dir / "Images"
+    images_dir.mkdir(exist_ok=True)
     
-    if images_zip.exists() and not images_dir.exists():
-        print("Extracting Images.zip...")
-        try:
-            with zipfile.ZipFile(images_zip, 'r') as zip_ref:
-                zip_ref.extractall(output_dir)
-            print("✓ Images extracted")
-            
-            # Remove zip file after extraction
-            images_zip.unlink()
-            print("✓ Images.zip removed")
-            
-        except Exception as e:
-            print(f"FATAL ERROR: Failed to extract Images.zip: {e}")
-            sys.exit(1)
+    zip_files = [
+        "CrowdHuman_train01.zip",
+        "CrowdHuman_train02.zip", 
+        "CrowdHuman_train03.zip",
+        "CrowdHuman_val.zip"
+    ]
+    
+    for zip_name in zip_files:
+        zip_path = output_dir / zip_name
+        if zip_path.exists():
+            print(f"Extracting {zip_name}...")
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(images_dir)
+                print(f"✓ {zip_name} extracted")
+                
+                # Remove zip file after extraction
+                zip_path.unlink()
+                print(f"✓ {zip_name} removed")
+                
+            except Exception as e:
+                print(f"FATAL ERROR: Failed to extract {zip_name}: {e}")
+                sys.exit(1)
     
     # Verify download
     required_files = ["annotation_train.odgt", "annotation_val.odgt", "Images"]
