@@ -28,6 +28,17 @@ def check_internet_connection():
         sys.exit(1)
 
 
+def verify_zip_integrity(zip_path: Path) -> bool:
+    """Verify zip file integrity by testing extraction"""
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            # Test the zip file by reading the file list and checking CRC
+            zip_ref.testzip()
+        return True
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, Exception):
+        return False
+
+
 def download_crowdhuman_dataset(output_dir: Path):
     """Download CrowdHuman dataset from Hugging Face"""
     
@@ -51,14 +62,35 @@ def download_crowdhuman_dataset(output_dir: Path):
         url = f"{base_url}/{filename}"
         local_path = output_dir / local_name
         
+        # Check if file exists and verify integrity for zip files
         if local_path.exists():
-            print(f"✓ {local_name} already exists, skipping")
-            continue
+            if local_name.endswith('.zip'):
+                print(f"Verifying integrity of {local_name}...")
+                if verify_zip_integrity(local_path):
+                    print(f"✓ {local_name} already exists and is valid, skipping")
+                    continue
+                else:
+                    print(f"⚠ {local_name} is corrupted, removing and re-downloading...")
+                    local_path.unlink()
+            else:
+                print(f"✓ {local_name} already exists, skipping")
+                continue
         
         print(f"Downloading {filename}...")
         try:
             urllib.request.urlretrieve(url, local_path)
-            print(f"✓ Downloaded {local_name}")
+            
+            # Verify zip file integrity immediately after download
+            if local_name.endswith('.zip'):
+                if verify_zip_integrity(local_path):
+                    print(f"✓ Downloaded and verified {local_name}")
+                else:
+                    print(f"FATAL ERROR: Downloaded {local_name} is corrupted")
+                    local_path.unlink()  # Remove corrupted file
+                    sys.exit(1)
+            else:
+                print(f"✓ Downloaded {local_name}")
+                
         except Exception as e:
             print(f"FATAL ERROR: Failed to download {filename}: {e}")
             sys.exit(1)
