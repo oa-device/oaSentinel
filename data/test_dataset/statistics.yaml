@@ -1,0 +1,27 @@
+# Test Dataset Statistics
+dataset: "oaSentinel Test Dataset"
+format: "YOLO"
+classes: ["person"]
+num_classes: 1
+synthetic: true
+
+splits:
+  train:
+    images: 16
+    labels: 16
+  validation:
+    images: 4
+    labels: 4
+  total: 20
+
+generation:
+  date: "2025-07-30T18:41:12Z"
+  samples_requested: 20
+  samples_generated: 20
+  
+paths:
+  images_train: "images/train"
+  images_val: "images/val"
+  labels_train: "labels/train"
+  labels_val: "labels/val"
+  dataset_yaml: "dataset.yaml"

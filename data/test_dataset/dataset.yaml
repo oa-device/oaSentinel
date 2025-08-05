@@ -1,0 +1,16 @@
+# oaSentinel Test Dataset Configuration
+path: /Users/kaitran/OrangeAd/oaPangaea/oaSentinel/data/test_dataset
+train: images/train
+val: images/val
+
+nc: 1
+names: ['person']
+
+# Dataset information
+info:
+  name: "oaSentinel Test Dataset"
+  description: "Synthetic dataset for testing the training pipeline"
+  created: "2025-07-30T18:41:12Z"
+  samples: 20
+  format: "YOLO"
+  synthetic: true
