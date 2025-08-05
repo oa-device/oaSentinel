@@ -3,136 +3,101 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org/)
 [![YOLO](https://img.shields.io/badge/YOLO-v11-green.svg)](https://github.com/ultralytics/ultralytics)
-[![License](https://img.shields.io/badge/License-Proprietary-yellow.svg)]()
 
-**Custom AI model for OrangeAd** - Advanced human detection and tracking optimization system built on proven ML infrastructure.
+oaSentinel is a professional, fail-fast implementation for training custom human detection models optimized for deployment on OrangeAd's multi-platform device fleet.
 
-## Overview
+## 🎯 Project Philosophy
 
-oaSentinel is a specialized computer vision system designed to optimize human detection and tracking for OrangeAd's digital signage and analytics platform. Built on battle-tested ML infrastructure from oaTracker, it delivers high-performance, edge-deployable models optimized for real-world deployment scenarios.
+**FAIL FAST, NO FALLBACKS**
 
-### Key Features
+- Strict error handling with immediate failure on invalid conditions
+- No dummy data, no "auto" fallbacks, no silent failures
+- Professional-grade implementation with explicit requirements
+- Better to fail completely than fake capability
 
-- 🎯 **Specialized Human Detection**: Fine-tuned YOLO models for optimal human detection accuracy
-- 🚀 **Edge-Optimized**: Multi-format model export (CoreML, ONNX) for macOS and OrangePi deployment
-- 📊 **Production Integration**: Seamless integration with existing oaTracker deployment pipeline
-- 🔧 **Flexible Training**: Configurable training pipeline with comprehensive evaluation metrics
-- 📈 **Experiment Tracking**: Built-in Weights & Biases integration for training monitoring
-- ⚡ **Performance Focused**: Optimized for real-time inference on edge devices
-
-## Architecture
+## 🏗️ Clean Architecture
 
 ```
 oaSentinel/
-├── data/                   # Dataset storage and management
-│   ├── raw/               # Original datasets (CrowdHuman, etc.)
-│   ├── processed/         # Preprocessed and augmented data
-│   └── splits/            # Train/validation/test splits
-├── models/                # Model storage and versioning
-│   ├── checkpoints/       # Training checkpoints
-│   └── exports/           # Exported models (CoreML, ONNX)
-├── src/                   # Core source code
-│   ├── training/          # Training pipeline and utilities
-│   ├── evaluation/        # Model evaluation and metrics
-│   ├── data_processing/   # Data loading and preprocessing
-│   └── utils/             # Shared utilities and helpers
-├── scripts/               # Automation and deployment scripts
-├── notebooks/             # Research and analysis notebooks
-└── tests/                 # Comprehensive test suite
+├── bin/                    # Executable entry points
+│   ├── oas-download       # Dataset download
+│   ├── oas-process        # Data processing
+│   ├── oas-train          # Model training
+│   └── oas-export         # Model export
+├── src/oasentinel/        # Core Python package
+│   ├── data/              # Data processing modules
+│   ├── training/          # Training modules
+│   └── evaluation/        # Evaluation modules
+├── configs/               # Configuration files
+├── models/                # Model files (.pt, .onnx, .coreml)
+├── data/                  # Dataset storage
+└── tests/                 # Test suite
 ```
 
-## Quick Start
+## 🚀 Professional Usage
 
-### Prerequisites
-
-- Python 3.10+
-- UV package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- Git LFS for large model files
-- CUDA-compatible GPU (recommended for training)
-
-### Installation
+### 1. Download CrowdHuman Dataset
 
 ```bash
-# Clone the repository (as part of oaPangaea monorepo)
-cd oaPangaea/oaSentinel
-
-# Install dependencies with UV
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e .
-
-# Install development dependencies
-uv pip install -e ".[dev]"
-
-# For GPU training (CUDA)
-uv pip install -e ".[gpu]"
+bin/oas-download --output data/raw/crowdhuman
 ```
 
-### Basic Usage
+### 2. Process to YOLO Format
 
 ```bash
-# Download and prepare CrowdHuman dataset
-./scripts/download_data.sh
-
-# Process dataset for YOLO training
-./scripts/process_data.sh
-
-# Train baseline model
-./scripts/train.sh --config configs/crowdhuman_yolo.yaml
-
-# Evaluate trained model
-./scripts/evaluate.sh --model models/checkpoints/best.pt
-
-# Export for deployment
-./scripts/export.sh --model models/checkpoints/best.pt --formats coreml onnx
+bin/oas-process --input data/raw/crowdhuman --output data/processed
 ```
 
-## Integration with oaTracker
+### 3. Train Model (GPU Required)
 
-oaSentinel models are designed for seamless integration with the existing oaTracker deployment pipeline:
-
-```python
-# oaTracker integration example
-from oatracker import Detection
-from oasentinel import SentinelModel
-
-# Load oaSentinel model in oaTracker
-model = SentinelModel.load("models/exports/sentinel_v1.onnx")
-detector = Detection(model=model)
+```bash
+bin/oas-train \
+  --data configs/crowdhuman.yaml \
+  --epochs 100 \
+  --device [0,1]
 ```
 
-## Training Pipeline
+### 4. Export for Deployment
 
-### Dataset Support
+```bash
+bin/oas-export \
+  --model runs/detect/train/weights/best.pt \
+  --formats onnx coreml
+```
 
-- **CrowdHuman**: Primary training dataset with dense human annotations
-- **Custom Datasets**: Support for project-specific annotation formats
-- **Data Augmentation**: Comprehensive augmentation pipeline for robust training
+## ⚡ Strict Requirements
 
-### Training Configuration
+### Hardware (REQUIRED)
+
+- **GPU**: NVIDIA GPU with CUDA (NO CPU training)
+- **Memory**: 16GB+ RAM, 8GB+ VRAM
+- **Storage**: 50GB+ free space
+
+### Software (REQUIRED)
+
+- **Python**: 3.9+
+- **CUDA**: 11.8+
+- **Internet**: For dataset download
+
+### Dataset (REQUIRED)
+
+- **CrowdHuman**: Must be downloaded and processed
+- **No synthetic data**: Real dataset required
+- **No test fallbacks**: Production data only
+
+## 🎛️ Configuration
+
+### Dataset Config (`configs/crowdhuman.yaml`)
 
 ```yaml
-# Example: configs/crowdhuman_yolo.yaml
-model:
-  architecture: "yolov8m"  # or yolov8n, yolov8s, yolov8l, yolov8x
-  pretrained: true
-  
-dataset:
-  name: "crowdhuman"
-  train_split: 0.8
-  val_split: 0.15
-  test_split: 0.05
-  
-training:
-  epochs: 100
-  batch_size: 16
-  learning_rate: 0.001
-  device: "auto"  # auto-detect GPU/CPU
-  
-export:
-  formats: ["coreml", "onnx"]
-  optimize: true
-  quantize: "int8"  # for edge deployment
+path: data/processed
+train: images/train
+val: images/val
+test: images/test
+nc: 2
+names:
+  0: person
+  1: head
 ```
 
 ### Model Export Formats
@@ -144,13 +109,13 @@ export:
 
 ## Performance Benchmarks
 
-| Model | mAP@0.5 | Inference (ms) | Model Size | Target Platform |
-|-------|---------|----------------|------------|-----------------|
-| YOLOv8n-Sentinel | 85.2% | 12ms | 6.2MB | OrangePi 5 |
-| YOLOv8s-Sentinel | 88.7% | 18ms | 21.5MB | Mac Mini |
-| YOLOv8m-Sentinel | 91.1% | 28ms | 49.7MB | Mac Mini (High Accuracy) |
+| Model            | mAP@0.5 | Inference (ms) | Model Size | Target Platform          |
+| ---------------- | ------- | -------------- | ---------- | ------------------------ |
+| YOLOv8n-Sentinel | 85.2%   | 12ms           | 6.2MB      | OrangePi 5               |
+| YOLOv8s-Sentinel | 88.7%   | 18ms           | 21.5MB     | Mac Mini                 |
+| YOLOv8m-Sentinel | 91.1%   | 28ms           | 49.7MB     | Mac Mini (High Accuracy) |
 
-*Benchmarks on CrowdHuman validation set with target hardware*
+_Benchmarks on CrowdHuman validation set with target hardware_
 
 ## Development
 
@@ -230,6 +195,7 @@ tensorboard --logdir logs/tensorboard
 To keep the repository lean and efficient, the following files are automatically excluded from version control:
 
 #### **Large Binary Files**
+
 ```bash
 # Model weights (auto-downloaded)
 *.pt, *.pth, *.onnx          # YOLO models, checkpoints
@@ -238,15 +204,17 @@ yolo*.pt                     # Downloaded YOLO models
 ```
 
 #### **Training Data & Outputs**
+
 ```bash
 data/test_dataset/           # Synthetic test images
-data/processed/              # Processed training data  
+data/processed/              # Processed training data
 data/raw/                    # Raw datasets
 outputs/                     # Generated results
 runs/                        # Training runs
 ```
 
 #### **Generated Artifacts**
+
 ```bash
 .venv/                       # Virtual environment (1.5GB+)
 wandb/                       # Weights & Biases logs
@@ -255,6 +223,7 @@ __pycache__/                 # Python cache files
 ```
 
 #### **Why This Matters**
+
 - **Repository Size**: Keeps clone times under 30 seconds
 - **Storage Efficiency**: Excludes ~2GB+ of generated/downloadable content
 - **Collaboration**: Prevents conflicts with local training artifacts
@@ -281,24 +250,28 @@ __pycache__/                 # Python cache files
 ## Roadmap
 
 ### Phase 5: Data Pipeline (Current)
+
 - [x] CrowdHuman dataset integration
 - [x] Data preprocessing pipeline
 - [ ] Custom annotation format support
 - [ ] Advanced augmentation strategies
 
 ### Phase 6: Model Development
+
 - [ ] Baseline YOLO training pipeline
 - [ ] Hyperparameter optimization
 - [ ] Model architecture experiments
 - [ ] Performance benchmarking
 
 ### Phase 7: Optimization & Export
+
 - [ ] Multi-format model export
 - [ ] Quantization and optimization
 - [ ] Edge device validation
 - [ ] Performance profiling
 
 ### Phase 8: Production Integration
+
 - [ ] oaTracker deployment integration
 - [ ] Ansible automation
 - [ ] Monitoring and alerting
