@@ -1,0 +1,13 @@
+# oaSentinel CrowdHuman Dataset Configuration
+# Professional YOLO dataset configuration for human detection training
+
+path: data/processed  # dataset root dir (relative to project root)
+train: images/train   # train images (relative to 'path')
+val: images/val       # val images (relative to 'path') 
+test: images/test     # test images (relative to 'path')
+
+# Classes for dual-class human detection
+nc: 2  # number of classes
+names:
+  0: person  # Full body detection
+  1: head    # Head detection
