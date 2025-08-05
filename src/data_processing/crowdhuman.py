@@ -31,7 +31,7 @@ class CrowdHumanProcessor(DataProcessor):
             output_dir: Directory for processed YOLO format output
         """
         super().__init__(input_dir, output_dir)
-        self.class_names = ['person']  # Single class for human detection
+        self.class_names = ['person', 'head']  # Dual class for person and head detection
         self.bbox_type = 'vbox'  # Use visible bounding boxes (best for detection)
         
     def validate_input(self) -> bool:
@@ -174,37 +174,84 @@ class CrowdHumanProcessor(DataProcessor):
                 target_image_path = images_dir / image_file
                 shutil.copy2(source_image_path, target_image_path)
                 
-                # Convert annotations
+                # Convert annotations - handle both person and head classes
                 yolo_annotations = []
                 
                 for obj in data.get('gtboxes', []):
+                    if obj.get('tag') == 'mask':
+                        continue  # ignore non-human objects
+                    
                     if obj.get('tag') != 'person':
                         continue
                     
-                    # Get the appropriate bounding box
-                    bbox = obj.get(self.bbox_type)
-                    if bbox is None:
-                        # Fallback to other box types
-                        bbox = obj.get('fbox') or obj.get('hbox')
-                        if bbox is None:
-                            continue
+                    # Process head bounding box (class 1)
+                    if 'hbox' in obj:
+                        hbox = obj['hbox']
+                        x, y, w, h = hbox
+                        
+                        # Ensure valid bounding box
+                        x = max(int(x), 0)
+                        y = max(int(y), 0)
+                        w = min(int(w), img_width - x)
+                        h = min(int(h), img_height - y)
+                        
+                        if w > 0 and h > 0:
+                            # Convert to YOLO format
+                            center_x, center_y, norm_width, norm_height = self.convert_bbox_to_yolo(
+                                (x, y, w, h), img_width, img_height
+                            )
+                            
+                            # Add head annotation (class 1)
+                            yolo_annotations.append(
+                                f"1 {center_x:.6f} {center_y:.6f} {norm_width:.6f} {norm_height:.6f}"
+                            )
+                            total_annotations += 1
                     
-                    x, y, w, h = bbox
+                    # Process full body bounding box (class 0)
+                    if 'fbox' in obj:
+                        fbox = obj['fbox']
+                        x, y, w, h = fbox
+                        
+                        # Ensure valid bounding box
+                        x = max(int(x), 0)
+                        y = max(int(y), 0)
+                        w = min(int(w), img_width - x)
+                        h = min(int(h), img_height - y)
+                        
+                        if w > 0 and h > 0:
+                            # Convert to YOLO format
+                            center_x, center_y, norm_width, norm_height = self.convert_bbox_to_yolo(
+                                (x, y, w, h), img_width, img_height
+                            )
+                            
+                            # Add person annotation (class 0)
+                            yolo_annotations.append(
+                                f"0 {center_x:.6f} {center_y:.6f} {norm_width:.6f} {norm_height:.6f}"
+                            )
+                            total_annotations += 1
                     
-                    # Skip invalid bounding boxes
-                    if w <= 0 or h <= 0:
-                        continue
-                    
-                    # Convert to YOLO format
-                    center_x, center_y, norm_width, norm_height = self.convert_bbox_to_yolo(
-                        (x, y, w, h), img_width, img_height
-                    )
-                    
-                    # Add to annotations (class 0 for person)
-                    yolo_annotations.append(
-                        f"0 {center_x:.6f} {center_y:.6f} {norm_width:.6f} {norm_height:.6f}"
-                    )
-                    total_annotations += 1
+                    # Fallback to vbox if fbox is not available
+                    elif 'vbox' in obj and 'fbox' not in obj:
+                        vbox = obj['vbox']
+                        x, y, w, h = vbox
+                        
+                        # Ensure valid bounding box
+                        x = max(int(x), 0)
+                        y = max(int(y), 0)
+                        w = min(int(w), img_width - x)  
+                        h = min(int(h), img_height - y)
+                        
+                        if w > 0 and h > 0:
+                            # Convert to YOLO format
+                            center_x, center_y, norm_width, norm_height = self.convert_bbox_to_yolo(
+                                (x, y, w, h), img_width, img_height
+                            )
+                            
+                            # Add person annotation (class 0)
+                            yolo_annotations.append(
+                                f"0 {center_x:.6f} {center_y:.6f} {norm_width:.6f} {norm_height:.6f}"
+                            )
+                            total_annotations += 1
                 
                 # Write YOLO annotation file if we have valid annotations
                 if yolo_annotations:
@@ -312,8 +359,8 @@ class CrowdHumanProcessor(DataProcessor):
             'path': str(splits_dir.absolute()),
             'train': 'train/images',
             'val': 'val/images',
-            'nc': 1,
-            'names': ['person']
+            'nc': 2,
+            'names': ['person', 'head']
         }
         
         if test_ratio > 0:

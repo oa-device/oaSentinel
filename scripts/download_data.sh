@@ -80,26 +80,62 @@ download_crowdhuman() {
         return 0
     fi
     
-    # CrowdHuman URLs
-    local base_url="https://www.crowdhuman.org/download"
-    local files=(
-        "annotation_train.odgt"
-        "annotation_val.odgt"
-        "Images.zip"
-    )
+    # Check for required dependencies
+    if ! command -v git &> /dev/null; then
+        log_error "git command not found. Please install git to continue."
+        return 1
+    fi
     
-    # Note: CrowdHuman requires registration and manual download
-    # This script provides instructions and validates the files
+    if ! command -v python3 &> /dev/null; then
+        log_error "python3 command not found. Please install Python 3 to continue."
+        return 1
+    fi
     
-    log_warning "CrowdHuman dataset requires manual registration and download."
-    echo ""
-    echo "Please follow these steps:"
-    echo "1. Visit: https://www.crowdhuman.org/"
-    echo "2. Register and agree to the terms of use"
-    echo "3. Download the following files to $dataset_dir:"
-    echo "   📄 annotation_train.odgt (~47MB)"
-    echo "   📄 annotation_val.odgt (~14MB)" 
-    echo "   📦 Images.zip (~15GB) or extract to Images/ folder"
+    # CrowdHuman Hugging Face dataset URL
+    local hf_repo="https://huggingface.co/datasets/sshao0516/CrowdHuman"
+    local hf_dataset_dir="$dataset_dir/huggingface_repo"
+    
+    log_info "Downloading CrowdHuman dataset from Hugging Face..."
+    log_info "Source: $hf_repo"
+    
+    # Clone the Hugging Face repository with Git LFS support
+    if [ -d "$hf_dataset_dir" ]; then
+        log_info "Repository already exists, updating..."
+        cd "$hf_dataset_dir"
+        git pull
+        cd "$PROJECT_ROOT"
+    else
+        log_info "Cloning Hugging Face repository..."
+        git clone "$hf_repo" "$hf_dataset_dir"
+    fi
+    
+    # Move files to expected structure
+    log_info "Organizing dataset files..."
+    
+    # Copy annotation files
+    if [ -f "$hf_dataset_dir/annotation_train.odgt" ]; then
+        cp "$hf_dataset_dir/annotation_train.odgt" "$dataset_dir/"
+    fi
+    
+    if [ -f "$hf_dataset_dir/annotation_val.odgt" ]; then
+        cp "$hf_dataset_dir/annotation_val.odgt" "$dataset_dir/"
+    fi
+    
+    # Handle images directory
+    if [ -d "$hf_dataset_dir/Images" ]; then
+        if [ ! -d "$dataset_dir/Images" ]; then
+            cp -r "$hf_dataset_dir/Images" "$dataset_dir/"
+        else
+            log_info "Images directory already exists, syncing..."
+            rsync -av "$hf_dataset_dir/Images/" "$dataset_dir/Images/"
+        fi
+    elif [ -f "$hf_dataset_dir/Images.zip" ]; then
+        log_info "Extracting Images.zip..."
+        cd "$dataset_dir"
+        unzip -q "$hf_dataset_dir/Images.zip"
+        cd "$PROJECT_ROOT"
+    fi
+    
     echo ""
     echo "💡 Citation required:"
     echo "@article{shao2018crowdhuman,"
@@ -109,19 +145,6 @@ download_crowdhuman() {
     echo "    year={2018}"
     echo "}"
     echo ""
-    echo "Expected directory structure:"
-    echo "$dataset_dir/"
-    echo "├── annotation_train.odgt"
-    echo "├── annotation_val.odgt"
-    echo "└── Images/"
-    echo "    ├── 273271,1a0d6000b9e1f5b7.jpg"
-    echo "    ├── 273271,1a10d000b9e1f5b7.jpg"
-    echo "    └── ... (~24,370 total images)"
-    echo ""
-    
-    # Wait for user confirmation with timeout
-    echo "⏳ Waiting for manual download completion..."
-    read -t 300 -p "Press Enter when you have downloaded and extracted the files (or wait 5 minutes to continue): " || echo ""
     
     # Validate downloaded files
     log_info "Validating downloaded files..."
@@ -197,14 +220,15 @@ download_crowdhuman() {
 name: CrowdHuman
 version: "1.0"
 description: "A benchmark dataset to better evaluate detectors in crowd scenarios"
-source: "https://www.crowdhuman.org/"
+source: "https://huggingface.co/datasets/sshao0516/CrowdHuman"
+original_source: "https://www.crowdhuman.org/"
 license: "Academic use only"
 
 statistics:
   total_images: $image_count
   train_images: $(wc -l < "$dataset_dir/annotation_train.odgt")
   val_images: $(wc -l < "$dataset_dir/annotation_val.odgt")
-  classes: ["person"]
+  classes: ["person", "head"]
   
 download_date: "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 downloaded_by: "$(whoami)"
