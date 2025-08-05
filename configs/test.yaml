@@ -4,7 +4,7 @@
 model:
   architecture: "yolo11n"  # Use nano model for fast testing
   pretrained: true
-  num_classes: 1  # Human detection only
+  num_classes: 2  # Dual-class: person and head detection
 
 dataset:
   name: "test_dataset"
