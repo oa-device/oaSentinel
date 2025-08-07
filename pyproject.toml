@@ -12,12 +12,12 @@ requires-python = ">=3.10"
 dependencies = [
     # Core ML framework (aligned with oaTracker)
     "ultralytics>=8.0.0",
-    "torch>=2.0.0",
-    "torchvision",
+    "torch>=2.5.0",
+    "torchvision>=0.20.0",
     "torchmetrics",
     
-    # Computer vision
-    "opencv-python>=4.8.0",
+    # Computer vision (headless to avoid GUI/libGL requirements)
+    "opencv-python-headless>=4.8.0",
     "pillow",
     "numpy",
     "scipy",
@@ -85,7 +85,9 @@ dev = [
 ]
 
 gpu = [
-    "torch[cuda]",  # CUDA support
+    "torch>=2.5.0,<3.0.0",  # CUDA 12.8 compatible PyTorch
+    "torchvision>=0.20.0,<1.0.0",
+    "torchaudio>=2.5.0,<3.0.0",
 ]
 
 [project.scripts]
