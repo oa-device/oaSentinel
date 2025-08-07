@@ -52,7 +52,15 @@ def validate_raw_dataset(raw_dir: Path):
     
     # Count images
     images_dir = raw_dir / "Images"
-    image_files = list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png"))
+    # Search recursively to handle nested CrowdHuman structure
+    image_files = (
+        list(images_dir.rglob("*.jpg")) +
+        list(images_dir.rglob("*.jpeg")) +
+        list(images_dir.rglob("*.png")) +
+        list(images_dir.rglob("*.JPG")) +
+        list(images_dir.rglob("*.JPEG")) +
+        list(images_dir.rglob("*.PNG"))
+    )
     
     if len(image_files) == 0:
         print(f"FATAL ERROR: No images found in {images_dir}")

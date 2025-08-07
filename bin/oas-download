@@ -94,9 +94,16 @@ def download_crowdhuman_dataset(output_dir: Path):
             print(f"FATAL ERROR: Download verification failed - missing {file_name}")
             sys.exit(1)
 
-    # Count images
+    # Count images (recursive) to account for nested extraction structure
     images_dir = output_dir / "Images"
-    image_files = list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png"))
+    image_files = (
+        list(images_dir.rglob("*.jpg")) +
+        list(images_dir.rglob("*.jpeg")) +
+        list(images_dir.rglob("*.png")) +
+        list(images_dir.rglob("*.JPG")) +
+        list(images_dir.rglob("*.JPEG")) +
+        list(images_dir.rglob("*.PNG"))
+    )
 
     print(f"✓ CrowdHuman dataset download completed")
     print(f"  Location: {output_dir}")

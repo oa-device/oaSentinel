@@ -61,9 +61,16 @@ class CrowdHumanProcessor:
                 print(f"  {f}")
             sys.exit(1)
         
-        # Validate Images directory has content
+        # Validate Images directory has content (search recursively)
         images_dir = self.input_dir / "Images"
-        image_files = list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png"))
+        image_files = (
+            list(images_dir.rglob("*.jpg")) +
+            list(images_dir.rglob("*.jpeg")) +
+            list(images_dir.rglob("*.png")) +
+            list(images_dir.rglob("*.JPG")) +
+            list(images_dir.rglob("*.JPEG")) +
+            list(images_dir.rglob("*.PNG"))
+        )
         
         if len(image_files) == 0:
             print(f"FATAL ERROR: No images found in {images_dir}")
@@ -91,6 +98,9 @@ class CrowdHumanProcessor:
         # Create output structure
         self._create_output_structure()
         
+        # Build image index once for performance and robust matching
+        self._build_image_index()
+
         # Process train and val splits
         train_stats = self._process_split('annotation_train.odgt', 'train')
         val_stats = self._process_split('annotation_val.odgt', 'val')
@@ -151,13 +161,8 @@ class CrowdHumanProcessor:
                 data = json.loads(line.strip())
                 image_id = data['ID']
                 
-                # Find image file
-                source_image_path = None
-                for ext in ['.jpg', '.png']:
-                    candidate = images_dir / f"{image_id}{ext}"
-                    if candidate.exists():
-                        source_image_path = candidate
-                        break
+                # Locate image using prebuilt index (handles nested dirs and case)
+                source_image_path = self._find_image_path(image_id)
                 
                 if not source_image_path:
                     print(f"ERROR: Image not found for ID {image_id}")
@@ -260,6 +265,32 @@ class CrowdHumanProcessor:
             print(f"  ⚠️  {error_count} errors occurred during processing")
         
         return stats
+
+    def _build_image_index(self):
+        """Scan Images/ recursively and build a fast lookup index by ID.
+
+        Handles case variations and multiple extensions. If duplicates exist,
+        prefers files in shallow paths first by sorting by path depth.
+        """
+        images_dir = self.input_dir / "Images"
+        all_images: List[Path] = []
+        for pattern in ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG"):
+            all_images.extend(images_dir.rglob(pattern))
+
+        # Sort by path depth to prefer shallower files in case of duplicates
+        all_images.sort(key=lambda p: len(p.parts))
+
+        self._image_index = {}
+        for p in all_images:
+            stem_lower = p.stem.lower()
+            if stem_lower not in self._image_index:
+                self._image_index[stem_lower] = p
+
+    def _find_image_path(self, image_id: str) -> Path:
+        """Find image path by ID using the index with case-insensitive match."""
+        if not hasattr(self, "_image_index"):
+            self._build_image_index()
+        return self._image_index.get(str(image_id).lower())
     
     def _convert_bbox_to_yolo(self, bbox: Tuple[float, float, float, float], 
                              img_width: int, img_height: int) -> Tuple[float, float, float, float]:
