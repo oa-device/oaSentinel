@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve oaSentinel home relative to this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OASENTINEL_HOME="${OASENTINEL_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+if ! command -v screen >/dev/null 2>&1; then
+  echo "FATAL: 'screen' is required but not installed. Install 'screen' and retry." >&2
+  exit 1
+fi
+
+if [ ! -f "$OASENTINEL_HOME/.venv/bin/activate" ]; then
+  echo "FATAL: Python virtualenv not found at $OASENTINEL_HOME/.venv. Create it first." >&2
+  exit 1
+fi
+
+# Defaults (can be overridden via env or CLI)
+DATA_CONFIG_DEFAULT="$OASENTINEL_HOME/configs/crowdhuman.yaml"
+DATA_CONFIG="${OASENTINEL_DATASET_CONFIG:-$DATA_CONFIG_DEFAULT}"
+EPOCHS_DEFAULT="${OASENTINEL_EPOCHS:-100}"
+DEVICE_DEFAULT="${OASENTINEL_DEVICE:-[0]}"
+
+# Build training args, respecting provided flags
+ARGS=("$@")
+has_flag() {
+  local flag="$1"
+  for v in "${ARGS[@]:-}"; do
+    case "$v" in
+      "$flag"|"$flag"=*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+CMD="$OASENTINEL_HOME/bin/oas-train"
+if ! has_flag --data; then
+  CMD+=" --data \"$DATA_CONFIG\""
+fi
+if ! has_flag --epochs; then
+  CMD+=" --epochs \"$EPOCHS_DEFAULT\""
+fi
+if ! has_flag --device; then
+  CMD+=" --device \"$DEVICE_DEFAULT\""
+fi
+# Append any extra args
+if [ ${#ARGS[@]:-0} -gt 0 ]; then
+  # shellcheck disable=SC2145
+  CMD+=" ${ARGS[@]}"
+fi
+
+echo "Starting training in background screen session 'oasentinel-training'"
+# Use bash -lc to ensure proper login-like env and robust quoting
+screen -dmS oasentinel-training bash -lc "cd '$OASENTINEL_HOME' && source .venv/bin/activate && $CMD; exec bash"
+
+echo "Attach with: screen -r oasentinel-training"
