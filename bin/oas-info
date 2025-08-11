@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OASENTINEL_HOME="${OASENTINEL_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+printf "oaSentinel Environment Info\n"
+printf "================================\n"
+printf "Home: %s\n" "$OASENTINEL_HOME"
+
+if [ -f "$OASENTINEL_HOME/.venv/bin/activate" ]; then
+  echo "Virtual env: [OK] Ready"
+else
+  echo "Virtual env: [FAIL] Not found"
+fi
+
+if command -v nvidia-smi >/dev/null 2>&1; then
+  echo "GPU(s):"
+  nvidia-smi --query-gpu=name --format=csv,noheader
+else
+  echo "GPU: None or nvidia-smi not available"
+fi
+
+if command -v screen >/dev/null 2>&1; then
+  echo "Training sessions:"; screen -list | grep -E "oasentinel" || echo "None"
+else
+  echo "screen not installed"
+fi
+
+LATEST_LOG=$(ls -1t "$OASENTINEL_HOME"/logs/training/*.log 2>/dev/null | head -n 1 || true)
+if [ -n "${LATEST_LOG:-}" ]; then
+  echo "Latest log: $LATEST_LOG"
+  tail -n 30 "$LATEST_LOG" || true
+else
+  echo "No logs found yet"
+fi
+
+exit 0
