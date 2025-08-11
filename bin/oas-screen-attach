@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Attach to oaSentinel training screen session
+exec screen -r oasentinel-training "$@"
